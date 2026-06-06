@@ -1,0 +1,22 @@
+---
+# ClusterIP service. The team's ingress will route to it once the
+# GitOps-of-GitOps layer is wired up; for raw-kubectl validation we
+# port-forward from the local workstation.
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-a
+  namespace: pilot-team
+  labels:
+    app.kubernetes.io/name: service-a
+    app.kubernetes.io/component: workload
+    app.kubernetes.io/part-of: pilot-team-platform-validation
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: service-a
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

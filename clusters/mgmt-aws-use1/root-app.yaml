@@ -1,0 +1,36 @@
+# ============================================================================
+# Root App-of-Apps for the management cluster
+# ----------------------------------------------------------------------------
+# This Application is the only thing the bootstrap applies directly.
+# Everything else is rendered from this entry point.
+# ============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-platform-fleet
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-fleet
+spec:
+  project: platform-tooling
+  source:
+    repoURL: https://github.com/your-org/gitops-fleet
+    targetRevision: main
+    path: clusters/mgmt-aws-use1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

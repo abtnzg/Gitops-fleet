@@ -1,0 +1,23 @@
+apiVersion: v2
+name: service-a
+description: |
+  service-a — pilot platform-validation workload. Distroless HTTP server,
+  immutable image, non-root, read-only rootfs. The chart is the GitOps
+  source of truth; the pilot-service-deploy Ansible role is the bootstrap
+  installer for new clusters.
+type: application
+# Pinning a chart version in the App-of-Apps pattern is the team's job;
+# this file is the chart itself, not the release.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+home: https://github.com/example/pilot-team
+sources:
+  - https://github.com/example/pilot-team/service-a
+keywords:
+  - pilot
+  - platform-validation
+  - service-a
+maintainers:
+  - name: pilot-team
+    email: pilot-team@example.com

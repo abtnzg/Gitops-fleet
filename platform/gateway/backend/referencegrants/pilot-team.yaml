@@ -1,0 +1,35 @@
+---
+# ============================================================================
+# ReferenceGrant: pilot-team → platform-gateway
+# ----------------------------------------------------------------------------
+# Required by Gateway API: a cross-namespace route attachment needs
+# an explicit grant from the resource owner (the Gateway's namespace)
+# to the resource user (the route's namespace).
+#
+# Without this, Envoy Gateway will reject the HTTPRoute with
+# "No matching parent" or "ReferenceNotPermitted".
+#
+# This is a platform-managed resource, not a team resource — adding
+# a new team means appending a new `from` entry to the `from` list.
+# In a more mature setup, the platform team would manage this via
+# the same path that creates team namespaces (Terraform or
+# App-of-Apps). For now, we keep it as a hand-edited file.
+# ============================================================================
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-pilot-team
+  namespace: gateway-system
+  labels:
+    app.kubernetes.io/name: reference-grant
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: platform
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: pilot-team
+  to:
+    - group: ""
+      kind: Service
+      name: service-a

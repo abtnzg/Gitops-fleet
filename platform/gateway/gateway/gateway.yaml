@@ -1,0 +1,42 @@
+---
+# ============================================================================
+# Gateway: platform-shared
+# ----------------------------------------------------------------------------
+# One platform-shared Gateway, owned by the platform team. Teams
+# reference it from their HTTPRoutes via `parentRefs[].name`. Routes
+# attached to this Gateway share a single Envoy proxy deployment,
+# which keeps the cluster's east-west traffic path simple and gives
+# the platform a single point to attach WAF/auth/rate-limit policies
+# (via Envoy Gateway BackendTLSPolicy, SecurityPolicy, etc).
+#
+# listener:
+#   - name: http  (port 80, HTTP cleartext — fine for sandbox; prod
+#     will be TLS via the cert-manager + Gateway TLS integration)
+#   - allowedRoutes.namespaces: all namespaces, so teams can attach
+#     routes from their own namespace without coordination.
+# ============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: platform-gateway
+  namespace: gateway-system
+  labels:
+    app.kubernetes.io/name: platform-gateway
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/managed-by: platform
+spec:
+  gatewayClassName: envoy-gateway
+
+  # One listener is enough for sandbox; prod will add a TLS listener
+  # with a cert-manager-issued cert. Keeping it simple here.
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      # Allow any namespace's HTTPRoute to attach. Restrict via
+      # `from: Selector` + namespace selectors if a multi-tenant
+      # isolation model is needed later.
+      allowedRoutes:
+        namespaces:
+          from: All

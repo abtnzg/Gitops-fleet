@@ -1,0 +1,180 @@
+# ============================================================================
+# service-a — default values
+# ----------------------------------------------------------------------------
+# Override per environment via:
+#   - a values file:  helm upgrade --install svc ... -f values-prod.yaml
+#   - --set flags:   --set replicaCount=5
+#   - the Ansible role's vars, which write a rendered values file
+# ============================================================================
+
+# Default namespace. The chart installs into .Release.Namespace by default
+# (matches what `helm install --namespace N` provided); this is for
+# the rare case where the template should hard-code a different ns.
+# namespace: pilot-team
+
+# Override the resource name prefix (defaults to "<release>-service-a").
+nameOverride: ""
+fullnameOverride: ""
+
+# Labels that propagate to every resource via the _helpers.tpl `labels`
+# template. Use sparingly — selector labels go via selectorLabels only.
+partOf: pilot-team-platform-validation
+
+replicaCount: 2
+
+revisionHistoryLimit: 3
+
+image:
+  # Pull path. registry="" means "use whatever Docker Hub / Pod defaults";
+  # for the ECR-hosted pilot image we set registry explicitly via -f.
+  registry: ""
+  repository: service-a
+  tag: latest
+  pullPolicy: IfNotPresent
+
+strategy:
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+service:
+  type: ClusterIP
+  # Service port — what the ClusterIP listens on.
+  port: 80
+  # Container port — what the application listens on (must match PORT env).
+  targetPort: 8080
+  # nodePort is only used when type=NodePort.
+  nodePort: null
+
+serviceAccount:
+  # The chart creates a dedicated SA. Disable if the namespace already has
+  # the right SA (e.g. created by Terraform or the platform-bootstrap role).
+  create: true
+  name: ""          # defaults to release name
+  annotations: {}
+  # Mount the SA token. Default false because we use Pod Identity, not SA
+  # tokens. Flip to true only if the workload actually calls the AWS APIs
+  # from in-cluster code (e.g. a sidecar doing SDK calls).
+  automountServiceAccountToken: false
+
+# Pod-level security context (the pod's runAs* / fsGroup).
+# Matches the platform's pod-security baseline: non-root, read-only
+# rootfs is enforced by containerSecurityContext.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Probes. Defaults match the raw-kubectl manifests from the validation run.
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+# Startup probe can be enabled if the container has a slow first start.
+# Disabled by default; the readiness probe is enough for the pilot.
+startupProbe: {}
+
+# Resource requests/limits. Floor numbers — let the team tune per env.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+    ephemeral-storage: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+    ephemeral-storage: 256Mi
+
+# Free-form env vars appended to the container. Useful for log level,
+# feature flags, OTel endpoint, etc. The PORT var is set by the chart
+# automatically; do not duplicate it here.
+extraEnv: []
+# - name: LOG_LEVEL
+#   value: info
+# - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#   value: http://otel-collector.observability:4317
+
+podAnnotations: {}
+
+# HPA. Disabled by default until metrics-server is installed; flip on per
+# env via -f values-prod.yaml.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 30
+
+# PDB. Off by default; production envs should set minAvailable: 1 to
+# protect against voluntary disruption (drains, autoscaler scale-down).
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# ServiceMonitor for Prometheus Operator. Off by default. The Prometheus
+# scrape annotation on the pod works without it (annotation-based scrape),
+# but ServiceMonitor gives Prometheus Operator a typed discovery target.
+serviceMonitor:
+  enabled: false
+  path: /metrics
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+# Gateway API: attach an HTTPRoute to the platform-shared Gateway.
+# Off by default so installs that don't need it (e.g. internal-only
+# services) don't accidentally expose themselves. Flip on per env.
+#
+# The ReferenceGrant that authorizes the cross-namespace attachment
+# is platform-owned and lives outside the chart; this template only
+# renders the team's route, not the grant.
+gateway:
+  enabled: true
+  # The platform-shared Gateway's name. Defaults to "platform-gateway"
+  # in the "gateway-system" namespace. Override per env if the platform
+  # team uses a different name (e.g. "platform-gateway-prod").
+  gatewayName: platform-gateway
+  gatewayNamespace: gateway-system
+  # The listener's name on the target Gateway. Must match a real
+  # listener on the Gateway (envoy-gateway chart default is "http").
+  listenerName: http
+  # Optional hostname filter. Leave empty to attach to the bare LB
+  # address; set to e.g. "service-a.pilot.example.com" once the team
+  # has a real domain.
+  hostname: ""
+  # Where the route mounts. Default "/" catches everything; narrow
+  # to e.g. "/api/v1" if multiple services share a gateway.
+  pathPrefix: /
+  # Service port to target. Defaults to the Service's exposed port.
+  backend:
+    port: 80

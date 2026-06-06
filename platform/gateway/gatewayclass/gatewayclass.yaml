@@ -1,0 +1,27 @@
+---
+# ============================================================================
+# GatewayClass: envoy-gateway
+# ----------------------------------------------------------------------------
+# Platform-managed. One GatewayClass per cluster, owned by the platform
+# team. Envoy Gateway is the implementation; the class name `envoy-gateway`
+# is what every team references in their HTTPRoute's `parentRef`.
+#
+# The controllerName MUST match the controller-manager identity that
+# Envoy Gateway reports. For envoyproxy/gateway-helm 1.4.x, that's
+# `gateway.envoyproxy.io/gatewayclass-controller`.
+#
+# parametersRef points at an EnvoyProxy config object — for a default
+# install with no special tunings, the empty in-line map is fine.
+# ============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-gateway
+  labels:
+    app.kubernetes.io/name: envoy-gateway
+    app.kubernetes.io/component: gateway-class
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/managed-by: platform
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  description: Platform-shared GatewayClass backed by Envoy Gateway.

@@ -1,0 +1,32 @@
+---
+# HPA — autoscaler. v2 API, scales on CPU. Min 2 (matches our replica
+# floor), max 10 (matches the cluster's node cap for t3.medium in
+# sandbox). Memory is secondary.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: service-a
+  namespace: pilot-team
+  labels:
+    app.kubernetes.io/name: service-a
+    app.kubernetes.io/component: workload
+    app.kubernetes.io/part-of: pilot-team-platform-validation
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: service-a
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 30

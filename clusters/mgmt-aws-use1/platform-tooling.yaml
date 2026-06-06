@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-tooling
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          # Sync waves keep dependencies in order:
+          #   -10: gateway + CSI drivers (need CRDs before everything else)
+          #    -5: storage classes (need CSI drivers ready)
+          #     0: policy engines
+          #     5: cert-manager / external-secrets / vault
+          #    10: argocd self-mgmt / argo-workflows / observability
+          - component: envoy-gateway
+            path: apps/envoy-gateway
+            wave: "-10"
+          - component: karpenter-nodepools
+            path: apps/karpenter
+            wave: "-10"
+          - component: csi-ebs
+            path: apps/storage/csi-ebs
+            wave: "-10"
+          - component: csi-efs
+            path: apps/storage/csi-efs
+            wave: "-10"
+          - component: csi-s3
+            path: apps/storage/csi-s3
+            wave: "-10"
+          - component: snapshot-controller
+            path: apps/storage/snapshot-controller
+            wave: "-7"
+          - component: storage-classes
+            path: apps/storage/classes
+            wave: "-5"
+          - component: kyverno
+            path: apps/kyverno
+            wave: "0"
+          - component: kyverno-policies
+            path: ../../policies/kyverno/baseline
+            wave: "1"
+          - component: gatekeeper
+            path: apps/gatekeeper
+            wave: "0"
+          - component: gatekeeper-policies
+            path: ../../policies/gatekeeper/baseline
+            wave: "1"
+          - component: cert-manager
+            path: apps/cert-manager
+            wave: "5"
+          - component: external-secrets
+            path: apps/external-secrets
+            wave: "5"
+          - component: vault
+            path: apps/vault
+            wave: "5"
+          - component: brupop
+            path: apps/brupop
+            wave: "10"
+          - component: argocd
+            path: apps/argocd
+            wave: "10"
+          - component: argo-workflows
+            path: apps/argo-workflows
+            wave: "10"
+          - component: opentelemetry-collector
+            path: apps/observability/otel-collector
+            wave: "10"
+  template:
+    metadata:
+      name: 'platform-{{.component}}'
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{.wave}}'
+    spec:
+      project: platform-tooling
+      source:
+        repoURL: https://github.com/your-org/gitops-fleet
+        targetRevision: main
+        path: '{{.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

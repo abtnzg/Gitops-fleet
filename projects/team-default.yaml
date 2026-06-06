@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-default
+  namespace: argocd
+spec:
+  description: Default template for product team AppProjects
+  sourceRepos:
+    - 'https://github.com/your-org/*'
+    - 'https://charts.bitnami.com/*'
+    - 'https://kubernetes.github.io/*'
+  destinations:
+    - namespace: 'team-*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: 'apps'
+      kind: Deployment
+    - group: 'apps'
+      kind: StatefulSet
+    - group: 'batch'
+      kind: 'CronJob'
+    - group: 'batch'
+      kind: Job
+    - group: 'networking.k8s.io'
+      kind: Ingress
+    - group: 'autoscaling'
+      kind: HorizontalPodAutoscaler
+  roles:
+    # Custom RBAC for SSO groups.
+    - name: developer
+      policies:
+        - p, proj:team-default:developer, applications, get, */*, allow
+        - p, proj:team-default:developer, applications, sync, */*, allow
+      groups:
+        - your-org:developers
+    - name: read-only
+      policies:
+        - p, proj:team-default:read-only, applications, get, */*, allow
+      groups:
+        - your-org:viewers

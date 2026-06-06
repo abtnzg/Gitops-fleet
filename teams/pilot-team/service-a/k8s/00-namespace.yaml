@@ -1,0 +1,13 @@
+---
+# Pilot team namespace. Created here directly so we can apply raw kubectl
+# before the GitOps-of-GitOps layer is wired up. In a fully GitOps flow,
+# this would be managed by an ArgoCD AppProject + ApplicationSet.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pilot-team
+  labels:
+    name: pilot-team
+    # The Pod Identity association for this namespace was created in TF.
+    # The argocd label is used by the team's AppProject to scope apps.
+    argocd.argoproj.io/managed-by: pilot-team
